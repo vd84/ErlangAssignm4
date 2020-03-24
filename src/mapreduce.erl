@@ -14,7 +14,7 @@ test() ->
 
 testwithNodes() ->
   HostName = inet:gethostname(),
-  Nodes = [secondNode@Baltazar, thirdNode@Baltazar],
+  Nodes = ['secondNode@DESKTOP-342NIH2', 'thirdNode@DESKTOP-342NIH2'],
   io:format("Starting Nodes: ~p\n",[Nodes]),
   Mapper = fun(_Key, Text) ->
     [{Word, 1} || Word <- Text]
@@ -217,8 +217,18 @@ spawn_reducers(Nodes, Master, Ref, Reducer, Reducers, I) ->
   [H|T] = Nodes,
   io:format("Nodes to spawn: ~p\n",[Nodes]),
   io:format("Spawn Reduser Node: ~p \n" ,[H]),
-  List = [{I, spawn_reducerNodes(H, Master, Ref, Reducer,
-    fun(Master, Ref, Reducer, Chunks) -> Fun = fun(F) -> F(F) end, Fun(Fun, Master, Ref, Reducer, Chunks) end) }] ++ spawn_reducers(T ++ [H], Master, Ref, Reducer, Reducers -1, I + 1),
+  Reducing = fun F(Master, Ref, Reducer, Chunks) ->
+    receive
+      startreducing ->
+        Reduce = [KV || {K, Vs} <- groupkeys(lists:sort(Chunks)),
+          KV <- Reducer(K, Vs)],
+        io:format("Send to Master from: ~p Reduce: ~p\n", [self(), Reduce]),
+        Master ! {reduce, self(), Ref, Reduce};
+      Chunk ->
+        F(Master, Ref, Reducer, Chunk ++ Chunks)
+    end end,
+  List = [{I, spawn_reducerNodes(H, Master, Ref, Reducer, Reducing)
+    }] ++ spawn_reducers(T ++ [H], Master, Ref, Reducer, Reducers -1, I + 1),
   io:format("ReducerLIst: ~p\n",[List]),
   List.
 
