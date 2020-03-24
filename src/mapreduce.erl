@@ -198,7 +198,7 @@ reducing(Master, Ref, Reducer, Chunks) ->
       reducing(Master, Ref, Reducer, Chunk ++ Chunks)
   end.
 
-spawn_reducer(Master, Ref, Reducer, F) ->
+spawn_reducer(Master, Ref, Reducer) ->
 
   spawn_link(fun() ->
     %% Group the values for each key and apply
@@ -218,15 +218,7 @@ spawn_reducers(Nodes, Master, Ref, Reducer, Reducers, I) ->
   io:format("Nodes to spawn: ~p\n",[Nodes]),
   io:format("Spawn Reduser Node: ~p \n" ,[H]),
   List = [{I, spawn_reducerNodes(H, Master, Ref, Reducer,
-    Reducing = fun(Master, Ref, Reducer, Chunks) -> receive
-                 startreducing ->
-                   Reduce = [KV || {K, Vs} <- groupkeys(lists:sort(Chunks)),
-                     KV <- Reducer(K, Vs)],
-                   io:format("Send to Master from: ~p Reduce: ~p\n", [self(), Reduce]),
-                   Master ! {reduce, self(), Ref, Reduce};
-                 Chunk ->
-                   Reducing(Master, Ref, Reducer, Chunk ++ Chunks)
-               end end)}] ++ spawn_reducers(T ++ [H], Master, Ref, Reducer, Reducers -1, I + 1),
+    fun(Master, Ref, Reducer, Chunks) -> Fun = fun(F) -> F(F) end, Fun(Fun, Master, Ref, Reducer, Chunks) end) }] ++ spawn_reducers(T ++ [H], Master, Ref, Reducer, Reducers -1, I + 1),
   io:format("ReducerLIst: ~p\n",[List]),
   List.
 
