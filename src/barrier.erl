@@ -42,8 +42,7 @@ wait(Barrier, Ref) ->
   end.
 
 do_a() ->
-  io:format("DO A \n"),
-  timer:sleep(5000).
+  io:format("DO A \n").
 
 do_b() ->
   io:format("DO B \n").
